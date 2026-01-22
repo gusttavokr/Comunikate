@@ -1,0 +1,46 @@
+# Bytecode do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ambientes virtuais
+.env
+.venv
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Configuração de IDEs/editores
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs
+*.log
+
+# Testes
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Build / distribuição
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Configs locais
+*.sqlite3
+*.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
