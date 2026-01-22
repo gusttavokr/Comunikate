@@ -3,9 +3,9 @@ import threading
 
 TCP_PORT = 5000
 UDP_PORT = 5001
+DISCOVERY_PORT = 5002
 BUFFER = 4096
 ENC = "utf-8"
-
 
 def _handle_tcp_client(conn, addr):
     """Thread para cada cliente TCP (sem autenticação, só echo/placeholder)."""
@@ -48,16 +48,36 @@ def _tcp_server_loop():
             t.start()
 
 
-def _udp_server_loop():
-    """Loop do servidor UDP (apenas eco para teste)."""
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_sock:
-        udp_sock.bind(("", UDP_PORT))
-        print(f"[UDP SERVER] Ouvindo em 0.0.0.0:{UDP_PORT}")
+# def _udp_server_loop():
+#     """Loop do servidor UDP (apenas eco para teste)."""
+#     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_sock:
+#         udp_sock.bind(("", UDP_PORT))
+#         print(f"[UDP SERVER] Ouvindo em 0.0.0.0:{UDP_PORT}")
+
+#         while True:
+#             data, addr = udp_sock.recvfrom(BUFFER)
+#             print(f"[UDP SERVER] Recebido de {addr}: {data!r}")
+#             udp_sock.sendto(data, addr)  # eco simples
+
+
+def _discovery_server_loop(server_name: str):
+    """Loop de descoberta: responde a broadcasts com info do servidor.
+
+    Protocolo simples:
+    - Cliente envia:  "DISCOVER_COMUNIKATE"
+    - Servidor responde: "COMUNIKATE_SERVER;<nome>;<tcp_port>"
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as disc_sock:
+        disc_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        disc_sock.bind(("", DISCOVERY_PORT))
+        print(f"[DISCOVERY SERVER] Ouvindo broadcast em 0.0.0.0:{DISCOVERY_PORT}")
 
         while True:
-            data, addr = udp_sock.recvfrom(BUFFER)
-            print(f"[UDP SERVER] Recebido de {addr}: {data!r}")
-            udp_sock.sendto(data, addr)  # eco simples
+            data, addr = disc_sock.recvfrom(BUFFER)
+            msg = data.decode(ENC).strip()
+            if msg == "DISCOVER_COMUNIKATE":
+                resposta = f"COMUNIKATE_SERVER;{server_name};{TCP_PORT}\n"
+                disc_sock.sendto(resposta.encode(ENC), addr)
 
 
 class Server:
@@ -68,16 +88,21 @@ class Server:
         Cria um servidor com:
         - TCP: recebe mensagens e ecoa de volta
         - UDP: recebe datagramas e ecoa de volta
+        - DISCOVERY: responde a broadcasts de descoberta de servidores
         """
         print("=== CRIAR SERVIDOR ===")
-        print(f"Servidor TCP na porta {TCP_PORT} e UDP na porta {UDP_PORT}.")
+        server_name = input("Nome do servidor (padrão: Servidor Comunikate): ").strip() or "Servidor Comunikate"
+        print(f"Servidor '{server_name}' criado.")
+        print(f"Servidor TCP na porta {TCP_PORT}, UDP na porta {UDP_PORT} e discovery na porta {DISCOVERY_PORT}.")
         print("Aguardando conexões... (Ctrl+C para encerrar)")
 
         t_tcp = threading.Thread(target=_tcp_server_loop, daemon=True)
-        t_udp = threading.Thread(target=_udp_server_loop, daemon=True)
+        # t_udp = threading.Thread(target=_udp_server_loop, daemon=True)
+        t_disc = threading.Thread(target=_discovery_server_loop, args=(server_name,), daemon=True)
 
         t_tcp.start()
-        t_udp.start()
+        # t_udp.start()
+        t_disc.start()
 
         try:
             while True:
