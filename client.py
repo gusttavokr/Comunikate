@@ -1,8 +1,8 @@
 import socket
+import threading
 
 TCP_PORT = 5000
-UDP_PORT = 5001
-DISCOVERY_PORT = 5002
+UDP_PORT = 5001  # reservado para envio de arquivos via UDP
 BUFFER = 4096
 ENC = "utf-8"
 
@@ -56,46 +56,85 @@ class Client:
         return self._tcp_connected
 
     @staticmethod
-    def descobrir_servidores(timeout: float = 2.0):
-        """Descobre servidores Comunikate na rede local via UDP broadcast.
+    def descobrir_servidores(timeout: float = 0.5):
+        """Descobre servidores Comunikate na rede local via TCP.
+
+        Estratégia simples:
+        - Descobre o IP local e assume rede /24 (ex.: 192.168.0.x).
+        - Tenta conectar via TCP em cada IP do range na porta TCP_PORT.
+        - Ao conectar, envia "HELLO_COMUNIKATE" e espera resposta
+          "COMUNIKATE_SERVER;<nome>;<porta>".
 
         Retorna uma lista de dicionários:
         [{"name": str, "ip": str, "port": int}, ...]
         """
         servidores = []
+        lock = threading.Lock()
 
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        # Descobre IP local para inferir o prefixo da rede (ex.: 192.168.0)
+        try:
+            tmp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            tmp_sock.connect(("8.8.8.8", 80))
+            local_ip = tmp_sock.getsockname()[0]
+        except OSError:
+            # fallback: localhost (pode não achar outros servidores)
+            local_ip = "127.0.0.1"
+        finally:
+            try:
+                tmp_sock.close()
+            except Exception:
+                pass
+
+        partes_ip = local_ip.split(".")
+        if len(partes_ip) != 4:
+            return []
+
+        prefixo = ".".join(partes_ip[:3])  # assume /24
+
+        def scan_host(ip: str):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(timeout)
+            try:
+                s.connect((ip, TCP_PORT))
+                s.sendall("HELLO_COMUNIKATE\n".encode(ENC))
+                data = s.recv(BUFFER)
+            except OSError:
+                s.close()
+                return
 
-            msg = "DISCOVER_COMUNIKATE".encode(ENC)
-            s.sendto(msg, ("<broadcast>", DISCOVERY_PORT))
+            s.close()
 
-            while True:
-                try:
-                    data, addr = s.recvfrom(BUFFER)
-                except socket.timeout:
-                    break
+            if not data:
+                return
 
-                texto = data.decode(ENC).strip()
-                # Esperado: COMUNIKATE_SERVER;<nome>;<tcp_port>
-                if not texto.startswith("COMUNIKATE_SERVER;"):
-                    continue
+            texto = data.decode(ENC).strip()
+            if not texto.startswith("COMUNIKATE_SERVER;"):
+                return
 
-                partes = texto.split(";")
-                if len(partes) != 3:
-                    continue
+            partes = texto.split(";")
+            if len(partes) != 3:
+                return
 
-                _, name, tcp_port_str = partes
-                try:
-                    tcp_port = int(tcp_port_str)
-                except ValueError:
-                    continue
+            _, name, tcp_port_str = partes
+            try:
+                tcp_port = int(tcp_port_str)
+            except ValueError:
+                return
 
-                ip = addr[0]
-                entrada = {"name": name, "ip": ip, "port": tcp_port}
+            entrada = {"name": name, "ip": ip, "port": tcp_port}
+            with lock:
                 if entrada not in servidores:
                     servidores.append(entrada)
+
+        threads = []
+        for host in range(1, 255):
+            ip = f"{prefixo}.{host}"
+            t = threading.Thread(target=scan_host, args=(ip,), daemon=True)
+            t.start()
+            threads.append(t)
+
+        for t in threads:
+            t.join()
 
         return servidores
     # ========= UDP (opcional, eco simples) =========

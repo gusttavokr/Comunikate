@@ -1,6 +1,29 @@
 from server import Server
 from client import Client
 
+
+def escolher_servidor():
+    print("\nProcurando servidores Comunikate na rede (via TCP)...")
+    servidores = Client.descobrir_servidores()
+
+    if not servidores:
+        print("Nenhum servidor encontrado.")
+        return None
+
+    print("\nServidores encontrados:")
+    for idx, s in enumerate(servidores, start=1):
+        print(f"{idx} - {s['name']} ({s['ip']}:{s['port']})")
+
+    while True:
+        try:
+            escolha = int(input("Escolha o número do servidor: "))
+            if 1 <= escolha <= len(servidores):
+                return servidores[escolha - 1]
+        except ValueError:
+            pass
+        print("Opção inválida, tente novamente.")
+
+
 def main():
     print("========================")
     print("Bem-vindo ao Comunikate!")
@@ -23,27 +46,6 @@ def main():
     if operation == 2:
         Server.criar_servidor()
 
-@staticmethod
-def escolher_servidor():
-    print("\nProcurando servidores Comunikate na rede...")
-    servidores = Client.descobrir_servidores()
-
-    if not servidores:
-        print("Nenhum servidor encontrado via broadcast.")
-        return None
-
-    print("\nServidores encontrados:")
-    for idx, s in enumerate(servidores, start=1):
-        print(f"{idx} - {s['name']} ({s['ip']}:{s['port']})")
-
-    while True:
-        try:
-            escolha = int(input("Escolha o número do servidor: "))
-            if 1 <= escolha <= len(servidores):
-                return servidores[escolha - 1]
-        except ValueError:
-            pass
-        print("Opção inválida, tente novamente.")
 
 if __name__ == "__main__":
     main()
