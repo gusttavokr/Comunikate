@@ -6,7 +6,7 @@ BUFFER = 4096
 ENC = "utf-8"
 
 class Client:
-    def __init__(self, host="10.25.1.21", tcp_port=TCP_PORT):
+    def __init__(self, host="10.25.1.69", tcp_port=TCP_PORT):
         self.host = host
         self.tcp_port = tcp_port
         self.tcp_socket: socket.socket | None = None
