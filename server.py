@@ -8,45 +8,53 @@ BUFFER = 4096
 ENC = "utf-8"
 
 
-def _handle_tcp_client(conn, addr):
+def _handle_tcp_client(conn, addr, server_name="Servidor TCP"):
     try:
-        print(f"[TCP SERVER] Nova conexão: {addr}")
+        print(f"[{server_name}] Nova conexão: {addr}")
         while True:
             data = conn.recv(BUFFER)
             if not data:
                 break
             msg = data.decode(ENC).strip()
-            print(f"[TCP SERVER] Recebido de {addr}: {msg}")
-            # eco simples
-            conn.send(f"OK: {msg}".encode(ENC))
+            print(f"[{server_name}] Recebido de {addr}: {msg}")
+            # eco com nome do servidor
+            response = f"[{server_name}] OK: {msg}"
+            conn.send(response.encode(ENC))
     except Exception as e:
-        print(f"[TCP SERVER] Erro com cliente {addr}: {e}")
+        print(f"[{server_name}] Erro com cliente {addr}: {e}")
     finally:
-        print(f"[TCP SERVER] Conexão encerrada: {addr}")
+        print(f"[{server_name}] Conexão encerrada: {addr}")
         conn.close()
 
 
-def _tcp_server_loop():
+def _tcp_server_loop(server_name="Servidor TCP"):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # reusa porta
     server.bind(("", TCP_PORT))  # escuta em todas as interfaces
     server.listen(5)
 
-    print(f"[SERVER] TCP ouvindo na porta {TCP_PORT}...")
+    print(f"[{server_name}] TCP ouvindo na porta {TCP_PORT}...")
     print("Aguardando conexões... (Ctrl+C para sair)")
 
     try:
         while True:
             conn, addr = server.accept()
-            t = threading.Thread(target=_handle_tcp_client, args=(conn, addr), daemon=True)
+            t = threading.Thread(target=_handle_tcp_client, args=(conn, addr, server_name), daemon=True)
             t.start()
     except KeyboardInterrupt:
-        print("\n[SERVER] Encerrando servidor TCP.")
+        print(f"\n[{server_name}] Encerrando servidor TCP.")
     finally:
         server.close()
 
 
 class Server:
     @staticmethod
-    def criar_servidor():
-        _tcp_server_loop()
+    def criar_servidor(nome="Servidor TCP"):
+        """
+        Cria e inicia um servidor TCP com o nome especificado.
+        
+        Args:
+            nome (str): Nome do servidor (padrão: "Servidor TCP")
+        """
+        print(f"Iniciando servidor: {nome}")
+        _tcp_server_loop(nome)

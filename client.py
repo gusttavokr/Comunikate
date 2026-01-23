@@ -1,4 +1,3 @@
-# client.py
 import socket
 
 TCP_PORT = 5000
@@ -48,7 +47,6 @@ class Client:
             return False
 
         try:
-            # Tentativa não invasiva: envia 0 bytes (não deve impactar o protocolo).
             self.tcp_socket.send(b"")
             return True
         except OSError:

@@ -98,9 +98,14 @@ def main():
                 print("Não foi possível conectar ao servidor.")
 
         elif op == "2":
-            print("\nCriando servidor TCP...")
+            nome_servidor = input("Digite o nome do servidor (ou Enter para usar 'Servidor TCP'): ").strip()
+            if not nome_servidor:
+                nome_servidor = "Servidor TCP"
+            
+            print(f"\nCriando servidor: {nome_servidor}")
+            print("Pressione Ctrl+C para parar o servidor.")
             # Bloqueante até Ctrl+C
-            Server.criar_servidor()
+            Server.criar_servidor(nome_servidor)
 
         else:
             print("Opção inválida. Tente novamente.\n")
