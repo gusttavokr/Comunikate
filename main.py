@@ -2,28 +2,6 @@
 from server import Server
 from client import Client
 
-# Exemplo simples de "descoberta" manual
-def escolher_servidor():
-    """Retorna um dicionário com ip/port do servidor escolhido."""
-    print("\n=== Escolher servidor ===")
-    ip = input("IP do servidor (ex: 192.168.0.100): ").strip()
-    porta_str = input("Porta TCP (padrão 5000): ").strip()
-
-    if not ip:
-        print("IP obrigatório.")
-        return None
-
-    if not porta_str:
-        porta = 5000
-    else:
-        try:
-            porta = int(porta_str)
-        except ValueError:
-            print("Porta inválida.")
-            return None
-
-    return {"ip": ip, "port": porta}
-
 
 def menu_cliente(client_app: Client):
     """Menu após o cliente estar conectado."""
@@ -81,18 +59,12 @@ def main():
             break
 
         elif op == "1":
-            escolhido = escolher_servidor()
-            if not escolhido:
-                continue
-
-            host = escolhido["ip"]
-            port = int(escolhido["port"])
-
-            client_app = Client(host=host, tcp_port=port)
-            client_app.conectar_tcp()
-
-            if client_app.esta_conectado():
-                print(f"Conectado a {host}:{port}.")
+            # Criar cliente sem IP no construtor
+            client_app = Client()
+            
+            # Deixar o cliente escolher e conectar automaticamente
+            if client_app.escolher_e_conectar():
+                print(f"Conectado com sucesso!")
                 menu_cliente(client_app)
             else:
                 print("Não foi possível conectar ao servidor.")
