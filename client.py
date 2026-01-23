@@ -1,53 +1,88 @@
 # client.py
 import socket
-import threading
 
 TCP_PORT = 5000
 BUFFER = 4096
 ENC = "utf-8"
 
-
 class Client:
-    def __init__(self, host="10.25.1.21", tcp_port=TCP_PORT):
+    def __init__(self, host="127.0.0.1", tcp_port=TCP_PORT):
         self.host = host
         self.tcp_port = tcp_port
-        self.tcp_sock = None
+        self.tcp_socket: socket.socket | None = None
+        self.connected = False
 
     def conectar_tcp(self):
-        if self.tcp_sock is not None:
-            self.fechar_tcp()
-
-        self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tcp_sock.connect((self.host, self.tcp_port))
-        print(f"[CLIENT] Conectado a {self.host}:{self.tcp_port} via TCP.")
-
-    def enviar_tcp(self, msg: str):
-        if not self.tcp_sock:
-            print("[CLIENT] Erro: não conectado.")
+        """Conecta ao servidor TCP especificado."""
+        if self.connected:
+            print("Já está conectado.")
             return
-        self.tcp_sock.send(msg.encode(ENC))
 
-    def receber_tcp(self) -> str:
-        if not self.tcp_sock:
-            print("[CLIENT] Erro: não conectado.")
-            return ""
-        data = self.tcp_sock.recv(BUFFER)
-        return data.decode(ENC) if data else ""
-
-    def fechar_tcp(self):
-        if self.tcp_sock:
-            self.tcp_sock.close()
-        self.tcp_sock = None
-
-    def loop_interativo(self):
-        print("[CLIENT] Modo interativo (digite 'QUIT' para sair):\n")
         try:
-            while True:
-                msg = input("Enviar: ").strip()
-                if msg.upper() == "QUIT":
-                    break
-                self.enviar_tcp(msg)
-                resp = self.receber_tcp()
-                print(f"Resposta: {resp}")
-        finally:
-            self.fechar_tcp()
+            self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.tcp_socket.connect((self.host, self.tcp_port))
+            self.connected = True
+            print(f"Conectado ao servidor {self.host}:{self.tcp_port}")
+        except Exception as e:
+            print(f"Falha ao conectar: {e}")
+            self.connected = False
+            if self.tcp_socket:
+                self.tcp_socket.close()
+                self.tcp_socket = None
+
+    def desconectar_tcp(self):
+        """Fecha a conexão TCP."""
+        if self.tcp_socket:
+            try:
+                self.tcp_socket.close()
+            except Exception:
+                pass
+            finally:
+                self.tcp_socket = None
+                self.connected = False
+                print("Desconectado do servidor.")
+
+    def esta_conectado(self) -> bool:
+        """Verifica se o socket ainda está conectado."""
+        if not self.tcp_socket or not self.connected:
+            return False
+
+        try:
+            # Tentativa não invasiva: envia 0 bytes (não deve impactar o protocolo).
+            self.tcp_socket.send(b"")
+            return True
+        except OSError:
+            self.connected = False
+            return False
+
+    def enviar_tcp(self, msg: str) -> bool:
+        """Envia uma mensagem TCP para o servidor."""
+        if not self.esta_conectado():
+            print("Não está conectado ao servidor.")
+            return False
+
+        try:
+            self.tcp_socket.send(msg.encode(ENC))
+            return True
+        except Exception as e:
+            print(f"Erro ao enviar mensagem: {e}")
+            self.desconectar_tcp()
+            return False
+
+    def receber_tcp(self) -> str | None:
+        """Recebe uma mensagem TCP do servidor."""
+        if not self.esta_conectado():
+            print("Não está conectado ao servidor.")
+            return None
+
+        try:
+            data = self.tcp_socket.recv(BUFFER)
+            if not data:
+                # servidor fechou
+                self.desconectar_tcp()
+                return None
+            return data.decode(ENC)
+        except Exception as e:
+            print(f"Erro ao receber mensagem: {e}")
+            self.desconectar_tcp()
+            return None
