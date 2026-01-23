@@ -1,7 +1,7 @@
-# server.py
+# trechos relevantes de server.py
 import socket
 import threading
-from server_save import registrar_servidor
+from server_registry import registrar_servidor
 
 TCP_PORT = 5000
 BUFFER = 4096
@@ -10,15 +10,14 @@ ENC = "utf-8"
 class Server:
     @staticmethod
     def criar_servidor():
-        """Cria um servidor TCP que escuta e registra nome/IP/porta."""
         nome = input("Nome do servidor: ").strip()
         if not nome:
             nome = "Servidor sem nome"
 
-        # Descobre IP local usado para conexões
+        # Descobrir IP local
         temp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            temp.connect(("8.8.8.8", 80))  # só para descobrir a interface
+            temp.connect(("8.8.8.8", 80))
             ip_local = temp.getsockname()[0]
         except Exception:
             ip_local = "127.0.0.1"
@@ -26,8 +25,8 @@ class Server:
             temp.close()
 
         registrar_servidor(nome, ip_local, TCP_PORT)
-        print(f"Servidor '{nome}' registrado em {ip_local}:{TCP_PORT}")
 
+        print(f"Servidor '{nome}' registrado em {ip_local}:{TCP_PORT}")
         print("Servidor TCP iniciado...")
         print(f"Aguardando conexões na porta {TCP_PORT}...")
 

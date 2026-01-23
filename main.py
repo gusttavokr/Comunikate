@@ -1,10 +1,11 @@
 from server import Server
 from client import Client
-from server_save import carregar_servidores
+from server_registry import carregar_servidores
 
 def escolher_servidor():
-    """Lista servidores salvos com nome e permite escolher um."""
     servidores = carregar_servidores()
+    print(f"[DEBUG] servidores carregados: {servidores}")  # debug
+
     if not servidores:
         print("Nenhum servidor registrado ainda.")
         print("Dica: em outra máquina, use a opção 'Criar servidor'.")
@@ -15,8 +16,7 @@ def escolher_servidor():
         print(f"{i} - {s['nome']} ({s['ip']}:{s['port']})")
 
     try:
-        idx = int(input("Escolha um servidor: ").strip())
-        idx -= 1
+        idx = int(input("Escolha um servidor: ").strip()) - 1
         if 0 <= idx < len(servidores):
             return servidores[idx]
         else:
@@ -25,6 +25,7 @@ def escolher_servidor():
     except ValueError:
         print("Entrada inválida.")
         return None
+
 
 
 
