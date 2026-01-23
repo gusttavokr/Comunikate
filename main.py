@@ -1,50 +1,109 @@
+# main.py
 from server import Server
 from client import Client
 
-
+# Exemplo simples de "descoberta" manual
 def escolher_servidor():
-    print("\nProcurando servidores Comunikate na rede (via TCP)...")
-    servidores = Client.descobrir_servidores()
+    """Retorna um dicionário com ip/port do servidor escolhido."""
+    print("\n=== Escolher servidor ===")
+    ip = input("IP do servidor (ex: 192.168.0.100): ").strip()
+    porta_str = input("Porta TCP (padrão 5000): ").strip()
 
-    if not servidores:
-        print("Nenhum servidor encontrado.")
+    if not ip:
+        print("IP obrigatório.")
         return None
 
-    print("\nServidores encontrados:")
-    for idx, s in enumerate(servidores, start=1):
-        print(f"{idx} - {s['name']} ({s['ip']}:{s['port']})")
-
-    while True:
+    if not porta_str:
+        porta = 5000
+    else:
         try:
-            escolha = int(input("Escolha o número do servidor: "))
-            if 1 <= escolha <= len(servidores):
-                return servidores[escolha - 1]
+            porta = int(porta_str)
         except ValueError:
-            pass
-        print("Opção inválida, tente novamente.")
+            print("Porta inválida.")
+            return None
+
+    return {"ip": ip, "port": porta}
+
+
+def menu_cliente(client_app: Client):
+    """Menu após o cliente estar conectado."""
+    while True:
+        print("\n===== MENU DO CLIENTE =====")
+        print("1 - Enviar mensagem")
+        print("2 - Verificar se ainda está conectado")
+        print("0 - Desconectar e voltar")
+        opc = input("Escolha: ").strip()
+
+        if opc == "0":
+            client_app.desconectar_tcp()
+            break
+
+        elif opc == "1":
+            msg = input("Mensagem (digite 'sair' para encerrar no servidor): ")
+            if not msg:
+                continue
+
+            if not client_app.enviar_tcp(msg):
+                print("Falha ao enviar. Provavelmente desconectado.")
+                break
+
+            resposta = client_app.receber_tcp()
+            if resposta is None:
+                print("Servidor encerrou a conexão.")
+                break
+
+            print(f"[SERVIDOR] {resposta}")
+
+        elif opc == "2":
+            if client_app.esta_conectado():
+                print("Ainda conectado ao servidor.")
+            else:
+                print("Conexão perdida com o servidor.")
+                break
+        else:
+            print("Opção inválida.")
 
 
 def main():
-    print("========================")
-    print("Bem-vindo ao Comunikate!")
-    print("========================")
-    print("Digite:")
-    print("1- Para entrar em um servidor, 2- Para criar um servidor")
+    while True:
+        print("========================")
+        print(" Bem-vindo ao Comunikate!")
+        print("========================")
+        print("Digite:")
+        print("1 - Entrar em um servidor")
+        print("2 - Criar um servidor")
+        print("0 - Sair")
 
-    operation = int(input("Insira: "))
+        op = input("Insira: ").strip()
 
-    if operation == 1:
-        escolhido = escolher_servidor()
-        if not escolhido:
-            return
+        if op == "0":
+            print("Saindo...")
+            break
 
-        client_app = Client(host=escolhido["ip"], tcp_port=escolhido["port"])
-        client_app.conectar_tcp()
-        # Exemplo simples: enviar uma mensagem de teste
-        # client_app.enviar_tcp("Olá, servidor!")
+        elif op == "1":
+            escolhido = escolher_servidor()
+            if not escolhido:
+                continue
 
-    if operation == 2:
-        Server.criar_servidor()
+            host = escolhido["ip"]
+            port = int(escolhido["port"])
+
+            client_app = Client(host=host, tcp_port=port)
+            client_app.conectar_tcp()
+
+            if client_app.esta_conectado():
+                print(f"Conectado a {host}:{port}.")
+                menu_cliente(client_app)
+            else:
+                print("Não foi possível conectar ao servidor.")
+
+        elif op == "2":
+            print("\nCriando servidor TCP...")
+            # Bloqueante até Ctrl+C
+            Server.criar_servidor()
+
+        else:
+            print("Opção inválida. Tente novamente.\n")
 
 
 if __name__ == "__main__":
