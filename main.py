@@ -1,17 +1,59 @@
+# main.py
+import socket
+import time
 from server import Server
 from client import Client
-from server_registry import carregar_servidores
+
+DISCOVERY_PORT = 54545
+ENC = "utf-8"
+
+def descobrir_servidores(timeout=3.0):
+    """Escuta broadcasts na rede local e retorna lista de servidores."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.settimeout(timeout)
+
+    try:
+        sock.bind(("", DISCOVERY_PORT))
+    except OSError as e:
+        print(f"[DISCOVERY] Erro ao bindar porta {DISCOVERY_PORT}: {e}")
+        sock.close()
+        return []
+
+    print(f"[DISCOVERY] Procurando servidores por {timeout} segundos...")
+    encontrados = {}
+
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            data, addr = sock.recvfrom(1024)
+        except socket.timeout:
+            break
+        except Exception as e:
+            print(f"[DISCOVERY] Erro ao receber: {e}")
+            break
+        else:
+            try:
+                decoded = data.decode(ENC)
+                nome, ip, porta_str = decoded.split("|")
+                porta = int(porta_str)
+            except Exception:
+                continue
+
+            # Usa (ip, porta) como chave para evitar duplicados
+            key = (ip, porta)
+            encontrados[key] = {"nome": nome, "ip": ip, "port": porta}
+
+    sock.close()
+    return list(encontrados.values())
 
 def escolher_servidor():
-    servidores = carregar_servidores()
-    print(f"[DEBUG] servidores carregados: {servidores}")  # debug
-
+    servidores = descobrir_servidores()
     if not servidores:
-        print("Nenhum servidor registrado ainda.")
-        print("Dica: em outra máquina, use a opção 'Criar servidor'.")
+        print("Nenhum servidor encontrado na rede.")
         return None
 
-    print("\n=== Servidores disponíveis ===")
+    print("\n=== Servidores disponíveis na rede ===")
     for i, s in enumerate(servidores, start=1):
         print(f"{i} - {s['nome']} ({s['ip']}:{s['port']})")
 
@@ -25,6 +67,7 @@ def escolher_servidor():
     except ValueError:
         print("Entrada inválida.")
         return None
+
 
 
 
