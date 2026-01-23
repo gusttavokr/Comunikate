@@ -1,104 +1,104 @@
-# server.py
 import socket
 import threading
 import time
 
-TCP_PORT = 5000
-DISCOVERY_PORT = 54545     # porta UDP para discovery
-BUFFER = 4096
+DISCOVERY_PORT = 54545
 ENC = "utf-8"
 
+def get_local_ip():
+    """Tenta descobrir o IP real da máquina na rede (ex: 192.168.x.x)"""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Não precisa conectar de verdade, só para o OS escolher a interface de saída
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
 class Server:
-    @staticmethod
-    def criar_servidor():
-        nome = input("Nome do servidor: ").strip()
-        if not nome:
-            nome = "Servidor sem nome"
+    def __init__(self, port=5000):
+        self.ip = get_local_ip()
+        self.port = port
+        self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.running = False
+        self.clients = []
 
-        # Descobrir IP local (para anunciar)
-        temp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    def _broadcast_loop(self):
+        """Envia pacotes UDP repetidamente para que clientes encontrem este servidor."""
+        udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        
+        # Formato que o seu main.py espera: "NOME|IP|PORTA"
+        hostname = socket.gethostname()
+        mensagem = f"Servidor de {hostname}|{self.ip}|{self.port}"
+        
+        print(f"[SERVER] Iniciando broadcast de descoberta na porta {DISCOVERY_PORT}...")
+        
+        while self.running:
+            try:
+                # Envia para toda a rede (<broadcast>)
+                udp_sock.sendto(mensagem.encode(ENC), ('<broadcast>', DISCOVERY_PORT))
+                time.sleep(2) # Anuncia a cada 2 segundos
+            except Exception as e:
+                print(f"[SERVER] Erro no broadcast: {e}")
+                time.sleep(5)
+        
+        udp_sock.close()
+
+    def _client_handler(self, cl_sock, cl_addr):
+        """Lida com mensagens de um cliente específico."""
+        print(f"[SERVER] Nova conexão de {cl_addr}")
         try:
-            temp.connect(("8.8.8.8", 80))
-            ip_local = temp.getsockname()[0]
-        except Exception:
-            ip_local = "127.0.0.1"
-        finally:
-            temp.close()
-
-        print(f"Servidor '{nome}' em {ip_local}:{TCP_PORT}")
-
-        # Inicia thread de broadcast UDP
-        t_discovery = threading.Thread(
-            target=Server._discovery_broadcast_loop,
-            args=(nome, ip_local, TCP_PORT),
-            daemon=True,
-        )
-        t_discovery.start()
-
-        # --- servidor TCP normal ---
-        print("Servidor TCP iniciado...")
-        print(f"Aguardando conexões na porta {TCP_PORT}...")
-
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-        try:
-            server_socket.bind(("", TCP_PORT))
-            server_socket.listen(5)
-            print("Servidor pronto para aceitar clientes.")
-
-            while True:
-                try:
-                    conn, addr = server_socket.accept()
-                    print(f"Cliente conectado: {addr}")
-                    t = threading.Thread(
-                        target=Server._handle_client,
-                        args=(conn, addr),
-                        daemon=True,
-                    )
-                    t.start()
-                except KeyboardInterrupt:
-                    print("\nEncerrando servidor...")
-                    break
-        finally:
-            server_socket.close()
-            print("Servidor encerrado.")
-
-    @staticmethod
-    def _discovery_broadcast_loop(nome, ip, porta):
-        """Envia periodicamente anúncios UDP na rede local."""
-        msg = f"{nome}|{ip}|{porta}".encode(ENC)
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-
-        addr = ("<broadcast>", DISCOVERY_PORT)
-
-        print(f"[DISCOVERY] Anunciando em broadcast na porta {DISCOVERY_PORT}...")
-        try:
-            while True:
-                sock.sendto(msg, addr)
-                time.sleep(1.0)  # 1 anúncio por segundo
-        except Exception as e:
-            print(f"[DISCOVERY] Erro no broadcast: {e}")
-        finally:
-            sock.close()
-
-    @staticmethod
-    def _handle_client(conn, addr):
-        # ... mesmo _handle_client que você já tinha ...
-        try:
-            while True:
-                data = conn.recv(BUFFER)
+            while self.running:
+                data = cl_sock.recv(1024)
                 if not data:
                     break
                 msg = data.decode(ENC)
-                print(f"[{addr[0]}:{addr[1]}] {msg}")
-
-                if msg.lower().strip() == "fechar":
-                    conn.send("encerrando".encode(ENC))
+                print(f"[{cl_addr}] disse: {msg}")
+                
+                if msg.lower() == 'sair':
                     break
-                else:
-                    conn.send("recebido".encode(ENC))
+                
+                # Eco simples (muda isso depois para lógica de chat real)
+                cl_sock.sendall(f"Recebido: {msg}".encode(ENC))
+        except ConnectionResetError:
+            pass
         finally:
-            conn.close()
+            print(f"[SERVER] Cliente {cl_addr} desconectado.")
+            cl_sock.close()
+            if cl_sock in self.clients:
+                self.clients.remove(cl_sock)
+
+    def iniciar(self):
+        try:
+            # Bind TCP (Conexão do chat)
+            self.tcp_sock.bind(("0.0.0.0", self.port))
+            self.tcp_sock.listen(5)
+            self.running = True
+
+            print(f"[SERVER] TCP ouvindo em {self.ip}:{self.port}")
+
+            # 1. Inicia a thread que "GRITA" na rede (Broadcast UDP)
+            retransmissor = threading.Thread(target=self._broadcast_loop, daemon=True)
+            retransmissor.start()
+
+            # 2. Loop principal aceitando conexões TCP
+            while self.running:
+                client_sock, addr = self.tcp_sock.accept()
+                self.clients.append(client_sock)
+                t_cli = threading.Thread(target=self._client_handler, args=(client_sock, addr), daemon=True)
+                t_cli.start()
+
+        except Exception as e:
+            print(f"[SERVER] Erro fatal: {e}")
+        finally:
+            self.running = False
+            self.tcp_sock.close()
+
+    @staticmethod
+    def criar_servidor():
+        s = Server(port=5000)
+        s.iniciar()
