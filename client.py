@@ -1,13 +1,16 @@
 import socket
+import os
 
 TCP_PORT = 5000
+UDP_PORT = 5001
 BUFFER = 4096
 ENC = "utf-8"
 
 class Client:
-    def __init__(self, tcp_port=TCP_PORT):
-        self.host = None  # Será definido ao escolher servidor
+    def __init__(self, tcp_port=TCP_PORT, udp_port=UDP_PORT):
+        self.host = None
         self.tcp_port = tcp_port
+        self.udp_port = udp_port
         self.tcp_socket: socket.socket | None = None
         self.connected = False
 
@@ -110,3 +113,53 @@ class Client:
             print(f"Erro ao receber mensagem: {e}")
             self.desconectar_tcp()
             return None
+
+    def enviar_arquivo_udp(self, caminho_arquivo: str) -> bool:
+        """Envia um arquivo via UDP"""
+        if not self.host:
+            print("Nenhum servidor especificado.")
+            return False
+            
+        if not os.path.exists(caminho_arquivo):
+            print(f"Arquivo '{caminho_arquivo}' não encontrado.")
+            return False
+        
+        try:
+            udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            udp_sock.settimeout(5)
+            
+            filename = os.path.basename(caminho_arquivo)
+            print(f"Enviando arquivo '{filename}' via UDP para {self.host}:{self.udp_port}...")
+            
+            # Enviar nome do arquivo
+            udp_sock.sendto(f"FILE:{filename}".encode(ENC), (self.host, self.udp_port))
+            
+            # Aguardar ACK
+            ack, _ = udp_sock.recvfrom(BUFFER)
+            if ack != b"ACK":
+                print("Servidor não respondeu corretamente.")
+                return False
+            
+            # Enviar conteúdo do arquivo
+            with open(caminho_arquivo, "rb") as f:
+                file_data = f.read()
+            
+            udp_sock.sendto(file_data, (self.host, self.udp_port))
+            
+            # Aguardar confirmação
+            resp, _ = udp_sock.recvfrom(BUFFER)
+            if resp == b"OK":
+                print(f"Arquivo '{filename}' enviado com sucesso! ({len(file_data)} bytes)")
+                return True
+            else:
+                print("Erro no envio do arquivo.")
+                return False
+                
+        except socket.timeout:
+            print("Timeout ao enviar arquivo via UDP.")
+            return False
+        except Exception as e:
+            print(f"Erro ao enviar arquivo via UDP: {e}")
+            return False
+        finally:
+            udp_sock.close()
