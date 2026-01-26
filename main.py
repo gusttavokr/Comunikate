@@ -7,8 +7,9 @@ def menu_cliente(client_app: Client):
     """Menu após o cliente estar conectado."""
     while True:
         print("\n===== MENU DO CLIENTE =====")
-        print("1 - Enviar mensagem")
-        print("2 - Verificar se ainda está conectado")
+        print("1 - Enviar mensagem (TCP)")
+        print("2 - Enviar arquivo (UDP)")
+        print("3 - Verificar conexão")
         print("0 - Desconectar e voltar")
         opc = input("Escolha: ").strip()
 
@@ -17,7 +18,7 @@ def menu_cliente(client_app: Client):
             break
 
         elif opc == "1":
-            msg = input("Mensagem (digite 'sair' para encerrar no servidor): ")
+            msg = input("Digite a mensagem: ")
             if not msg:
                 continue
 
@@ -33,10 +34,15 @@ def menu_cliente(client_app: Client):
             print(f"[SERVIDOR] {resposta}")
 
         elif opc == "2":
+            caminho = input("Caminho do arquivo: ").strip()
+            if caminho:
+                client_app.enviar_arquivo_udp(caminho)
+
+        elif opc == "3":
             if client_app.esta_conectado():
-                print("Ainda conectado ao servidor.")
+                print("✓ Ainda conectado ao servidor.")
             else:
-                print("Conexão perdida com o servidor.")
+                print("✗ Conexão perdida com o servidor.")
                 break
         else:
             print("Opção inválida.")
@@ -44,43 +50,40 @@ def menu_cliente(client_app: Client):
 
 def main():
     while True:
-        print("========================")
-        print(" Bem-vindo ao Comunikate!")
-        print("========================")
-        print("Digite:")
-        print("1 - Entrar em um servidor")
-        print("2 - Criar um servidor")
+        print("\n=============================")
+        print("   Comunikate - TCP & UDP")
+        print("=============================")
+        print("1 - Conectar a um servidor")
+        print("2 - Iniciar servidor")
         print("0 - Sair")
 
-        op = input("Insira: ").strip()
+        op = input("\nEscolha: ").strip()
 
         if op == "0":
             print("Saindo...")
             break
 
         elif op == "1":
-            # Criar cliente sem IP no construtor
             client_app = Client()
-            
-            # Deixar o cliente escolher e conectar automaticamente
             if client_app.escolher_e_conectar():
-                print(f"Conectado com sucesso!")
+                print("✓ Conectado com sucesso!")
                 menu_cliente(client_app)
             else:
-                print("Não foi possível conectar ao servidor.")
+                print("✗ Não foi possível conectar ao servidor.")
 
         elif op == "2":
-            nome_servidor = input("Digite o nome do servidor (ou Enter para usar 'Servidor TCP'): ").strip()
+            nome_servidor = input("Nome do servidor (Enter para 'Servidor'): ").strip()
             if not nome_servidor:
-                nome_servidor = "Servidor TCP"
+                nome_servidor = "Servidor"
             
-            print(f"\nCriando servidor: {nome_servidor}")
-            print("Pressione Ctrl+C para parar o servidor.")
-            # Bloqueante até Ctrl+C
+            print(f"\n[Iniciando {nome_servidor}]")
+            print("Porta TCP: 5000 (mensagens)")
+            print("Porta UDP: 5001 (arquivos)")
+            print("\nPressione Ctrl+C para parar.\n")
             Server.criar_servidor(nome_servidor)
 
         else:
-            print("Opção inválida. Tente novamente.\n")
+            print("✗ Opção inválida.\n")
 
 
 if __name__ == "__main__":

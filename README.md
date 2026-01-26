@@ -1,52 +1,136 @@
 # Comunikate
 
-Comunikate é um comunicador em linha de comando (CLI) para troca de dados entre máquinas na **mesma rede local**, implementado em **Python** usando **TCP e UDP**.
+Sistema simples de comunicação entre máquinas usando **TCP e UDP** nativos em Python.
 
-- **TCP** é usado para a conexão estável entre cliente e servidor **e também para descobrir servidores** na rede (varrendo a sub-rede e fazendo um handshake).
-- **UDP** é reservado para o **envio de arquivos** de forma leve/broadcast.
+## 📋 Requisitos do Projeto
 
-> Estado atual: o projeto já implementa descoberta automática de servidores via **TCP** e conexão TCP entre cliente e servidor. A parte de envio de arquivos via UDP pode ser evoluída em cima dessa base.
-
----
-
-## Arquitetura
-
-- Servidor
-	- Escuta conexões **TCP** na porta padrão `5000`.
-	- Responde a mensagens TCP (no momento, um *echo* simples).
-	- Reserva a porta `5001/UDP` para envio/recebimento de arquivos (a implementar).
-
-- Cliente
-	- Descobre o IP local, assume uma rede /24 (ex.: `192.168.0.x`).
-	- Tenta conectar via TCP em cada IP do range na porta `5000`.
-	- Monta uma lista com os servidores encontrados (`nome`, IP, porta TCP).
-	- O usuário escolhe um servidor pelo índice.
-	- O cliente então abre uma conexão **TCP** com o servidor escolhido e pode trocar mensagens/dados por essa conexão.
-
-Essa divisão permite usar **TCP para controle/transferência confiável e descoberta** e **UDP para envio de arquivos** em um formato leve (a implementar).
+✅ Implementa transmissão de dados com protocolos **TCP e UDP** de fato  
+✅ **TCP**: usado para mensagens de texto (conexão confiável)  
+✅ **UDP**: usado para envio de arquivos (transferência rápida)  
+✅ Ambos os protocolos em um único projeto  
+✅ Não usa HTTP/RTSP ou outros protocolos de alto nível  
 
 ---
 
-## Requisitos
+## 🏗️ Arquitetura
 
-- Python 3.10+ (ou compatível com *type hints* usados no projeto).
-- Máquinas na **mesma rede local** (mesmo Wi‑Fi ou rede cabeada), preferencialmente em uma rede /24 simples (ex.: `192.168.0.x`).
-- Permitir tráfego nas portas:
-	- `5000/TCP` – conexões cliente-servidor e descoberta.
-	- `5001/UDP` – (planejado) envio de arquivos.
+### Servidor
+- **Porta 5000/TCP**: Recebe e responde mensagens de texto
+- **Porta 5001/UDP**: Recebe arquivos e salva no diretório local
+
+### Cliente
+- Conecta ao servidor via TCP (mensagens)
+- Envia arquivos via UDP (transferência direta)
 
 ---
 
-## Instalação
+## 🚀 Como Usar
 
-Clone o repositório e entre na pasta do projeto:
+### 1. Instalar
+Clone o repositório:
 
 ```bash
-git clone https://github.com/gusttavokr/Comunikate.git
+git clone https://github.com/seu-usuario/Comunikate.git
 cd Comunikate
 ```
 
-Não há dependências externas além da biblioteca padrão do Python.
+**Requisito**: Python 3.10+
+
+### 2. Iniciar o Servidor
+
+Em um terminal:
+
+```bash
+python main.py
+```
+
+Escolha opção `2` para criar o servidor. Ele ficará escutando nas portas 5000 (TCP) e 5001 (UDP).
+
+### 3. Conectar como Cliente
+
+Em outro terminal (ou máquina na mesma rede):
+
+```bash
+python main.py
+```
+
+Escolha opção `1` e informe:
+- IP do servidor (ex: `localhost` ou `192.168.0.10`)
+- Porta TCP (padrão: 5000)
+
+### 4. Testar os Protocolos
+
+No menu do cliente:
+
+- **Opção 1**: Enviar mensagem via **TCP**
+- **Opção 2**: Enviar arquivo via **UDP**
+
+---
+
+## 📁 Estrutura do Projeto
+
+```
+Comunikate/
+├── main.py      # Interface principal (menu)
+├── server.py    # Servidor TCP/UDP
+├── client.py    # Cliente TCP/UDP
+└── README.md    # Este arquivo
+```
+
+---
+
+## 🧪 Exemplo de Teste
+
+### Terminal 1 (Servidor):
+```
+python main.py
+→ Escolha: 2
+[Servidor TCP] TCP ouvindo na porta 5000...
+[Servidor UDP] UDP ouvindo na porta 5001 para receber arquivos...
+```
+
+### Terminal 2 (Cliente):
+```
+python main.py
+→ Escolha: 1
+IP do servidor: localhost
+→ Conectado com sucesso!
+
+Menu:
+1 - Enviar mensagem (TCP)
+2 - Enviar arquivo (UDP)
+
+→ 1
+Digite a mensagem: Olá servidor!
+[SERVIDOR] Mensagem recebida: Olá servidor!
+
+→ 2
+Caminho do arquivo: teste.txt
+Arquivo 'teste.txt' enviado com sucesso! (15 bytes)
+```
+
+---
+
+## 🔍 Demonstração dos Protocolos
+
+**TCP (Porta 5000)**:
+- Conexão orientada e confiável
+- Usado para mensagens de texto
+- Mantém estado da conexão
+
+**UDP (Porta 5001)**:
+- Sem conexão (connectionless)
+- Usado para transferência de arquivos
+- Mais rápido, sem garantias de entrega
+
+---
+
+## 📦 Requisitos Técnicos
+
+- Python 3.10+
+- Biblioteca padrão (socket, threading, os)
+- Máquinas na mesma rede local
+- Portas 5000 e 5001 liberadas no firewall
 
 ---
 
